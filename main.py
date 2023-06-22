@@ -9,6 +9,8 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 
 # %%
 #======Initialization======
@@ -42,11 +44,15 @@ plt.show()
 features = df["Fahrenheit"].values.reshape(-1, 1)
 labels = df["Celsius"].values.reshape(-1, 1)
 
-features = StandardScaler().fit_transform(features)
-labels = StandardScaler().fit_transform(labels)
+#labels = StandardScaler().fit_transform(labels)
 
 #Splits the data into training and test sets
 x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size = 0.2)
+
+#scaler = RobustScaler().fit(x_train)
+
+#x_train = scaler.transform(x_train)
+#x_test = scaler.transform(x_test)
 
 x_test_df = pd.DataFrame(x_test, columns=["Fahrenheit"])
 y_test_df = pd.DataFrame(y_test, columns=["Celsius"])
@@ -57,8 +63,8 @@ test_df = pd.concat([x_test_df, y_test_df], axis=1)
 # %%
 #======Training======
 #Hypervariables
-lr = 1e-1 #Learning rate
-n_epochs = 1000 #Number of epochs
+lr = 1e-4 #Learning rate
+n_epochs = 30000 #Number of epochs
 
 #Creates a model and sends it to the device
 model = nn.Sequential(nn.Linear(1, 1)).to(device)
