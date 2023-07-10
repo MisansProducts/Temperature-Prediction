@@ -8,7 +8,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+
+# %%
+#======Function Definitions======
+def dot_aligned(seq): #Aligns floating point values in a list to the decimal point
+    snums = [str(n) for n in seq]
+    dots = [s.find('.') for s in snums]
+    m = max(dots)
+    return [' '*(m - d) + s for s, d in zip(snums, dots)]
 
 # %%
 #======Initialization======
@@ -19,19 +26,20 @@ torch.cuda.manual_seed(42)
 
 #Sets precision to 20 digits
 torch.set_printoptions(precision = 20)
+np.set_printoptions(precision = 20)
 
 #Sets device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # %%
 #======Data Loading======
-#First, we will use PyTorch to predict the temperature in celsius given the temperature in fahrenheit.
 df = pd.read_csv("data_fahrenheit_celsius.csv") #Loads data
 df.dropna(axis = 0, how = 'any', inplace = True) #Drops invalid rows
-# df.head()
+df.head(10)
 
+# %%
 #Visualizes the data
-plt.figure(figsize = (6, 6), dpi = 500)
+plt.figure(figsize = (6, 6), dpi = 100)
 plt.title("Temperature")
 sns.scatterplot(data = df, x = "Fahrenheit", y = "Celsius", s = 15, color = "#E67070")
 plt.show()
@@ -42,25 +50,15 @@ plt.show()
 features = df["Fahrenheit"].values.reshape(-1, 1)
 labels = df["Celsius"].values.reshape(-1, 1)
 
-#labels = StandardScaler().fit_transform(labels)
-
 #Splits the data into training and test sets
 x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size = 0.2)
 
-#scaler = RobustScaler().fit(x_train)
-
-#x_train = scaler.transform(x_train)
-#x_test = scaler.transform(x_test)
-
-x_test_df = pd.DataFrame(x_test, columns=["Fahrenheit"])
-y_test_df = pd.DataFrame(y_test, columns=["Celsius"])
-
-# Concatenate x_test and y_test horizontally
-test_df = pd.concat([x_test_df, y_test_df], axis=1)
+#Creates a separate dataframe for the testing set to graph later (actual)
+test_df_actual = pd.DataFrame({"Fahrenheit": x_test.flatten(), "Celsius": y_test.flatten()})
 
 # %%
 #======Training======
-#Hypervariables
+#Hyperparameters
 lr = 1e-4 #Learning rate
 n_epochs = 30000 #Number of epochs
 
@@ -93,7 +91,10 @@ for epoch in range(n_epochs):
     optimizer.step()
     optimizer.zero_grad()
 
-print(model.state_dict())
+#Prints the weight and bias after training
+states = dot_aligned(["{:.20f}".format(value.cpu().detach().numpy().item()) for value in model.state_dict().values()])
+print(f"Weight:\t{states[0]}")  #Should be   0.5556
+print(f"Bias:\t{states[1]}")    #Should be -17.7778
 
 # %%
 #======Testing======
@@ -110,29 +111,25 @@ yhat = model(x_test)
 y_predicted = yhat.cpu().detach().numpy()
 comparison = abs(y_predicted - y_test).flatten()
 
+#Creates a dataframe for the testing set to graph later (predicted)
+test_df_predicted = pd.DataFrame({"Fahrenheit": test_df_actual["Fahrenheit"], "Celsius": y_predicted.flatten()})
+
 #Prints statistics
 print("Testing set statistics")
-print(f"Median:\t\t{np.median(comparison)}")
-print(f"Mean:\t\t{np.mean(comparison)}")
-print(f"STD:\t\t{np.std(comparison)}", end = "\n\n")
-
-#Visualizes the data
-plt.figure(figsize = (6, 6), dpi = 500)
-plt.title("Temperature")
-sns.scatterplot(data = test_df, x = "Fahrenheit", y = "Celsius", s = 15, color = "#346EEB")
-plt.plot(test_df["Fahrenheit"], y_predicted, "red")
-plt.show()
+print(f"Median:\t{np.median(comparison)}")
+print(f"Mean:\t{np.mean(comparison)}")
+print(f"STD:\t{np.std(comparison)}")
 
 # %%
 #Evaluates numbers outside of the training set
-x_new = np.random.uniform(-100, 100, (100, 1))
+x_new = np.random.uniform(-1000, 1000, (100, 1))
 y_new = (x_new - 32) / 1.8
-x_new_df = pd.DataFrame(x_new, columns=["Fahrenheit"])
-y_new_df = pd.DataFrame(y_new, columns=["Celsius"])
+
+#Creates a dataframe for the new testing set to graph later (actual)
+new_df_actual = pd.DataFrame({"Fahrenheit": x_new.flatten(), "Celsius": y_new.flatten()})
 
 #Sends the new set to PyTorch
 x_new = torch.from_numpy(x_new).float().to(device)
-test_df2 = pd.concat([x_new_df, y_new_df], axis=1)
 
 #Computes the predicted output
 yhat = model(x_new)
@@ -141,17 +138,24 @@ yhat = model(x_new)
 y_predicted = yhat.cpu().detach().numpy()
 comparison = abs(y_predicted - y_new).flatten()
 
+#Creates a dataframe for the new testing set to graph later (predicted)
+new_df_predicted = pd.DataFrame({"Fahrenheit": new_df_actual["Fahrenheit"], "Celsius": y_predicted.flatten()})
+
 #Prints statistics
 print("New set statistics")
-print(f"Median:\t\t{np.median(comparison)}")
-print(f"Mean:\t\t{np.mean(comparison)}")
-print(f"STD:\t\t{np.std(comparison)}")
+print(f"Median:\t{np.median(comparison)}")
+print(f"Mean:\t{np.mean(comparison)}")
+print(f"STD:\t{np.std(comparison)}")
 
-#Plots lines
+# %%
 #Visualizes the data
-plt.figure(figsize = (6, 6), dpi = 500)
-plt.title("Temperature")
-sns.scatterplot(data = test_df2, x = "Fahrenheit", y = "Celsius", s = 15, color = "#346EEB")
-plt.plot(test_df2["Fahrenheit"], y_predicted, "red")
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
+sns.scatterplot(data = test_df_actual, x = "Fahrenheit", y = "Celsius", s = 25, color = "#E67070", ax = ax1) #Testing points (actual)
+sns.lineplot(data = test_df_predicted, x = "Fahrenheit", y = "Celsius", color = "#3075FF", ax = ax1) #Testing line (predicted)
+ax1.set_title("Testing dataset (20 points)")
+sns.scatterplot(data = new_df_actual, x = "Fahrenheit", y = "Celsius", s = 25, color = "#E67070", ax = ax2) #New points (actual)
+sns.lineplot(data = new_df_predicted, x = "Fahrenheit", y = "Celsius", color = "#3075FF", ax = ax2) #New line (predicted)
+ax2.set_title("Newly generated dataset outside the range of training\n(100 points)")
 plt.show()
+
 # %%
