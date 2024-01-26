@@ -29,7 +29,7 @@ Alex Akoopie - Creator
 
 ## Using PyTorch
 
-### Without Standardizing
+### Without Standardization
 
 First, we will use PyTorch to predict the temperature in celsius given the temperature in fahrenheit. Here is a sample of what the data looks like:
 
