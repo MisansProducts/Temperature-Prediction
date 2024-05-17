@@ -192,7 +192,7 @@ Comparison graph shows that standardizing misaligns the actual values with the m
 
 Final evaluation metrics:
 ```
-Mean Absolute Error:	0.022001713736242056
-Mean Squared Error:	    0.0007551624022078109
-R-squared:		        0.9999997003632581
+Mean Absolute Error:    0.022001713736242056
+Mean Squared Error:     0.0007551624022078109
+R-squared:              0.9999997003632581
 ```
